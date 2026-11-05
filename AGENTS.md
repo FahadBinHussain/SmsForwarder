@@ -18,6 +18,16 @@ so devices not covered by an OEM hide-workflow still look boring.
   variants sign with the release config when `isNeedPackage=true`).
 - outputs land in `build/app/outputs/apk/debug/` (per-ABI + universal), ~19MB.
 - build cmd: `.\gradlew.bat assembleDebug --console=plain` (~2min warm).
+- **STALE BUILD DIR = "Type frpclib.Frpclib is defined multiple times" (hit 2026-11-05).**
+  a `build/` tree from an earlier session leaves the old transform jars in
+  `build/app/intermediates/transforms/com.xuexiang.xrouter/debug/` (0..N.jar);
+  the new run appends its own (N+1..M.jar) and R8 then sees `frpclib.Frpclib`
+  twice -> `minifyDebugWithR8` fails. fix: `rm -rf build app/build` (both) before
+  building after ANY checkout/merge/time gap. do not chase the sources jar -
+  it is upstream and harmless on a clean tree. full clean build takes ~5min cold.
+- **build from a detached process** (long-running): `Start-Process pwsh ... -File build.ps1
+  -RedirectStandardOutput <log>` then poll the log; the foreground shell tool
+  times out at 120s and a 5-min gradle run cannot fit.
 
 ## install (MIUI/HyperOS gotcha)
 
