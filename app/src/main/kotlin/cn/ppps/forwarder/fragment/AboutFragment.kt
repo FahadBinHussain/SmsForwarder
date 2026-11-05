@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import cn.ppps.forwarder.App
 import cn.ppps.forwarder.BuildConfig
 import cn.ppps.forwarder.R
+import cn.ppps.forwarder.adb.AdbBridge
 import cn.ppps.forwarder.core.BaseFragment
 import cn.ppps.forwarder.core.webview.AgentWebActivity
 import cn.ppps.forwarder.databinding.FragmentAboutBinding
@@ -22,6 +23,7 @@ import cn.ppps.forwarder.utils.SettingUtils
 import cn.ppps.forwarder.utils.XToastUtils
 import cn.ppps.forwarder.utils.sdkinit.XUpdateInit
 import com.xuexiang.xaop.annotation.SingleClick
+import io.reactivex.android.schedulers.AndroidSchedulers
 import com.xuexiang.xpage.annotation.Page
 import com.xuexiang.xui.widget.actionbar.TitleBar
 import com.xuexiang.xui.widget.dialog.materialdialog.DialogAction
@@ -122,6 +124,44 @@ class AboutFragment : BaseFragment<FragmentAboutBinding?>(), SuperTextView.OnSup
         binding!!.menuDonation.setOnSuperTextViewClickListener(this)
         binding!!.menuUserProtocol.setOnSuperTextViewClickListener(this)
         binding!!.menuPrivacyProtocol.setOnSuperTextViewClickListener(this)
+
+        // M1 SPIKE: the in-app ADB bridge self-test (Shizuku-free).
+        // Long-press the version row to run `id` through the bridge and show the result.
+        binding!!.menuVersion.setOnLongClickListener {
+            runBridgeSelfTest()
+            true
+        }
+    }
+
+    /**
+     * M1 spike - run `id` through the in-app ADB bridge.
+     * Success prints the shell uid (uid=2000(shell)); failure shows the exact reason.
+     */
+    private fun runBridgeSelfTest() {
+        XToastUtils.info("ADB bridge self-test running...")
+        AdbBridge.shell(requireContext(), "id")
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                { result ->
+                    val msg = if (result.exitOk) {
+                        "BRIDGE OK\n${result.output}"
+                    } else {
+                        "BRIDGE FAILED\n${result.error}"
+                    }
+                    MaterialDialog.Builder(requireContext())
+                        .title("ADB bridge self-test")
+                        .content(msg)
+                        .positiveText(android.R.string.ok)
+                        .show()
+                },
+                { e ->
+                    MaterialDialog.Builder(requireContext())
+                        .title("ADB bridge self-test")
+                        .content("BRIDGE FAILED\n${e.message}")
+                        .positiveText(android.R.string.ok)
+                        .show()
+                }
+            )
     }
 
     @SingleClick
